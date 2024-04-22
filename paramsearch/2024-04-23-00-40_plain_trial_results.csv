@@ -1,0 +1,4 @@
+metric_accuracy,metric_precision,metric_recall,metric_AUC,model_name,dataset_size,dense_out_features,learning_rate,scheduler,warmup_steps,freeze_embedding_model,batch_size,num_epochs
+0.84,0.5769,0.75,0.8062,jinaai/jina-embeddings-v2-small-en,25600,256,0.0001,warmuplinear,500,False,32,8
+0.79,0.4762,0.5,0.6813,jinaai/jina-embeddings-v2-small-en,25600,256,0.0001,warmuplinear,500,True,32,8
+0.76,0.4231,0.55,0.6812,jinaai/jina-embeddings-v2-small-en,1600,256,0.0001,warmuplinear,500,False,32,8
