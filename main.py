@@ -199,16 +199,10 @@ def download_dataset():
 
 
 def generate_configs(n_trials):
-    count = 3
     for model, sample_size, freeze_embedding_model in product(
         MODELS, DATASET_SIZE, [True, False]
     ):
-        if count < 0:
-            break
         for _ in range(n_trials):
-            count -= 1
-            if count == 0:
-                break
             yield random_search_config(model, sample_size, freeze_embedding_model)
 
 
