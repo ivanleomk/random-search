@@ -9,6 +9,7 @@ from itertools import product
 import pandas as pd
 import os
 import json
+import shutil
 
 gpu_config = gpu.A10G()
 MODELS = [
@@ -27,11 +28,10 @@ FREEZE_EMBEDDING_MODEL = [True]
 BATCH_SIZE = [32]
 MAX_EPOCHS = 8
 
-# TODO: Revert test size back to 10000
 DATASET_NAME = "567-labs/cleaned-quora-dataset-train-test-split"
 DATASET_DIR = "/data"
 DATASET_VOLUME = Volume.from_name("modal-optimisation-volume", create_if_missing=True)
-TEST_SET_SIZE = 100
+TEST_SET_SIZE = 10000
 
 METRICS = {
     "accuracy": accuracy_score,  # This is the number of correct predictions by the model ( TP + TN )/ (# of samples)
@@ -126,6 +126,8 @@ def initialise_model(model_config: ModelConfig) -> SentenceTransformer:
     gpu=gpu_config,
     timeout=86400,
     volumes={DATASET_DIR: DATASET_VOLUME},
+    concurrency_limit=50,
+    allow_concurrent_inputs=True,
 )
 def objective(config: ModelConfig):
     from datasets import load_from_disk
@@ -157,8 +159,8 @@ def objective(config: ModelConfig):
 
     MODEL_SAVE_PATH = f"/output/{model_config_hash}"
 
-    if not os.path.exists(MODEL_SAVE_PATH):
-        os.makedirs(MODEL_SAVE_PATH)
+    if os.path.exists(MODEL_SAVE_PATH):
+        shutil.rmtree(MODEL_SAVE_PATH)
 
     model.fit(
         train_objectives=[(train_dataloader, train_loss)],
@@ -199,11 +201,16 @@ def download_dataset():
 
 
 def generate_configs(n_trials):
+    configs = set()
     for model, sample_size, freeze_embedding_model in product(
-        MODELS, DATASET_SIZE, [True, False]
+        MODELS, DATASET_SIZE, FREEZE_EMBEDDING_MODEL
     ):
         for _ in range(n_trials):
-            yield random_search_config(model, sample_size, freeze_embedding_model)
+            config = random_search_config(model, sample_size, freeze_embedding_model)
+            if config not in configs:
+                yield config
+
+            configs.add(hash(config))
 
 
 @stub.local_entrypoint()
@@ -222,8 +229,6 @@ def main():
             print(f"Encountered Exception of {experiment_result}")
 
         results.append(experiment_result)
-        # dumb but... save the results to a file every time a new result is available
-        # This is to ensure that the results are not lost if the job is interrupted
         df = pd.DataFrame(results).sort_values("metric_accuracy", ascending=False)
         df.to_csv(f"./paramsearch/{date}_plain_trial_results.csv", index=False)
 
